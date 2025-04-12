@@ -1,0 +1,67 @@
+{
+  "name": "dhara",
+  "version": "1.0.0",
+  "description": "A modern streaming app built with Electron.",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron .",
+    "pack": "electron-builder --dir",
+    "build": "electron-builder",
+    "build:win": "electron-builder --win",
+    "build:mac": "electron-builder --mac",
+    "build:linux": "electron-builder --linux"
+  },
+  "author": "Niloy Sarker",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^35.1.5",
+    "electron-builder": "^24.9.1"
+  },
+  "build": {
+    "appId": "com.niloy.dhara",
+    "productName": "Dhara",
+    "asar": true,
+    "compression": "maximum",
+    "artifactName": "${name}-setup-${version}-${os}.${ext}",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "**/*",
+      "!node_modules/**/*",
+      "!**/.git",
+      "!**/.vscode",
+      "!**/dist",
+      "!**/*.map"
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "icon.ico"
+    },
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "icon": "icon.png",
+      "category": "public.app-category.entertainment"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "icon": "icon.png",
+      "category": "AudioVideo"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "installerIcon": "icon.ico",
+      "uninstallerIcon": "icon.ico"
+    }
+  }
+}

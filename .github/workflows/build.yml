@@ -1,0 +1,88 @@
+name: Build and Release
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*' # This will trigger the workflow when you push a tag starting with 'v'
+  workflow_dispatch:
+    inputs:
+      release_name:
+        description: 'Release name'
+        required: false
+        default: 'Latest Build'
+      os:
+        description: 'Operating system to build for'
+        required: false
+        default: 'windows'
+        type: choice
+        options:
+          - windows
+          - all
+        
+jobs:
+  build-windows:
+    if: ${{ github.event_name == 'push' || github.event.inputs.os == 'all' || github.event.inputs.os == 'windows' }}
+    runs-on: windows-latest
+    env:
+      GH_TOKEN: ${{ secrets.GH_TOKEN }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # Set up Node.js
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '23.3.0'
+
+      # Install dependencies
+      - name: Install Dependencies
+        run: npm install
+
+      # Build the binaries
+      - name: Build Binaries
+        run: npm run build:win
+
+      # Get package info from package.json
+      - name: Get Package Info
+        id: package-info
+        run: |
+          echo "app-name=$(node -p "require('./package.json').name")" >> $GITHUB_OUTPUT
+          echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+          echo "product-name=$(node -p "require('./package.json').build.productName || require('./package.json').name")" >> $GITHUB_OUTPUT
+        shell: bash
+
+      # Prepare release notes by updating version in the changelog
+      - name: Prepare Release Notes
+        id: release-notes
+        run: |
+          # Read the changelog and replace [VERSION] with actual version
+          CHANGELOG_CONTENT=$(cat CHANGELOG.md | sed "s/\[VERSION\]/${{ steps.package-info.outputs.version }}/g")
+          # Save to a temporary file with proper escaping for multiline content in GitHub Actions
+          echo "$CHANGELOG_CONTENT" > release_notes.md
+          echo "notes-file=release_notes.md" >> $GITHUB_OUTPUT
+        shell: bash
+
+      # List files in dist directory to debug
+      - name: List Build Files
+        run: |
+          ls -la dist/
+        shell: bash
+
+      # Create GitHub Release for Windows
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: ${{ github.event.inputs.release_name || format('Release v{0}', steps.package-info.outputs.version) }}
+          tag_name: ${{ github.ref_type == 'tag' && github.ref_name || format('v{0}', steps.package-info.outputs.version) }}
+          draft: false
+          prerelease: false
+          files: |
+            dist/${{ steps.package-info.outputs.app-name }}-setup-${{ steps.package-info.outputs.version }}-*.exe
+          body_path: ${{ steps.release-notes.outputs.notes-file }}
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
