@@ -124,7 +124,7 @@ https://example.com/stream/playlist.m3u8
 - **Font Awesome**: Icon toolkit by Fonticons, Inc.
 - **Electron**: Cross-platform desktop apps framework by GitHub
 - **[mahdirdrmc](https://github.com/mahdirdrmc/dhara-streaming/)**: Main Project Idea
-
+- **[byte-capsule](https://github.com/byte-capsule)**: Stream Source
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
