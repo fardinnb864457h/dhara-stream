@@ -1,13 +1,7 @@
 name: Build and Release App
 
 on:
-  push:
-    branches:
-      - main
-      - master
-    paths:
-      - 'package.json' # Trigger when package.json changes (likely version updates)
-  workflow_dispatch: # Allow manual triggering
+  workflow_dispatch: # Only manual triggering
     inputs:
       release_type:
         description: 'Release type'
@@ -17,11 +11,6 @@ on:
         options:
           - standard
           - pre-release
-      force_release:
-        description: 'Force new release even if tag exists'
-        required: false
-        default: false
-        type: boolean
 
 jobs:
   build-windows:
@@ -31,8 +20,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-        with:
-          fetch-depth: 0 # Fetch all history for proper versioning
       
       - name: Setup Node.js
         uses: actions/setup-node@v3
@@ -50,54 +37,21 @@ jobs:
           APP_NAME=$(node -p "require('./package.json').name")
           VERSION=$(node -p "require('./package.json').version")
           PRODUCT_NAME=$(node -p "require('./package.json').build.productName || require('./package.json').name")
-          VERSION_TAG="v$VERSION"
+          TIMESTAMP=$(date +'%Y%m%d%H%M%S')
+          RELEASE_ID="$VERSION-$TIMESTAMP"
           
           echo "app_name=$APP_NAME" >> $GITHUB_OUTPUT
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "product_name=$PRODUCT_NAME" >> $GITHUB_OUTPUT
-          echo "version_tag=$VERSION_TAG" >> $GITHUB_OUTPUT
+          echo "timestamp=$TIMESTAMP" >> $GITHUB_OUTPUT
+          echo "release_id=$RELEASE_ID" >> $GITHUB_OUTPUT
           
           # Display the extracted info for debugging
           echo "App Name: $APP_NAME"
           echo "Version: $VERSION"
           echo "Product Name: $PRODUCT_NAME"
-          echo "Tag: $VERSION_TAG"
-        shell: bash
-      
-      # Check if tag already exists
-      - name: Check if tag exists
-        id: tag-check
-        run: |
-          git fetch --tags
-          TAG_EXISTS=$(git tag -l "${{ steps.package-info.outputs.version_tag }}")
-          if [ -n "$TAG_EXISTS" ]; then
-            echo "tag_exists=true" >> $GITHUB_OUTPUT
-            echo "Tag ${{ steps.package-info.outputs.version_tag }} already exists"
-          else
-            echo "tag_exists=false" >> $GITHUB_OUTPUT
-            echo "Tag ${{ steps.package-info.outputs.version_tag }} does not exist yet"
-          fi
-        shell: bash
-      
-      # Delete existing tag if force_release is enabled
-      - name: Delete existing tag if needed
-        if: github.event.inputs.force_release == 'true' && steps.tag-check.outputs.tag_exists == 'true'
-        run: |
-          echo "Deleting existing tag ${{ steps.package-info.outputs.version_tag }}..."
-          git push --delete origin ${{ steps.package-info.outputs.version_tag }} || true
-          git tag -d ${{ steps.package-info.outputs.version_tag }} || true
-          echo "tag_exists=false" >> $GITHUB_OUTPUT
-        shell: bash
-      
-      # Create tag if it doesn't exist
-      - name: Create Release Tag
-        if: steps.tag-check.outputs.tag_exists == 'false' || github.event.inputs.force_release == 'true'
-        run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          git tag -a ${{ steps.package-info.outputs.version_tag }} -m "Release ${{ steps.package-info.outputs.version_tag }}"
-          echo "RELEASE_TAG=${{ steps.package-info.outputs.version_tag }}" >> $GITHUB_ENV
-          echo "Created tag ${{ steps.package-info.outputs.version_tag }}"
+          echo "Timestamp: $TIMESTAMP"
+          echo "Release ID: $RELEASE_ID"
         shell: bash
       
       # Force clear electron-builder cache
@@ -105,6 +59,15 @@ jobs:
         run: |
           rm -rf ~/.cache/electron-builder || true
           rm -rf ./dist || true
+        shell: bash
+      
+      # Create a package.json copy with enforced version
+      - name: Create build-specific package.json
+        run: |
+          # Read package.json and ensure version is correct
+          jq '.version = "${{ steps.package-info.outputs.version }}"' package.json > package.json.tmp
+          mv package.json.tmp package.json
+          cat package.json | grep version
         shell: bash
       
       # Build Windows binaries with explicit version flag
@@ -124,13 +87,32 @@ jobs:
             echo "$CHANGELOG_CONTENT" > release_notes.md
             
             # Add build information footer
-            echo -e "\n## Build Information\nBuild Date: $(date +'%Y-%m-%d')\nVersion: ${{ steps.package-info.outputs.version }}" >> release_notes.md
+            echo -e "\n## Build Information\nBuild Date: $(date +'%Y-%m-%d')\nVersion: ${{ steps.package-info.outputs.version }}\nBuild ID: ${{ steps.package-info.outputs.timestamp }}" >> release_notes.md
           else
             # Create simple release notes if no changelog
-            echo "# Release ${{ steps.package-info.outputs.version_tag }}" > release_notes.md
-            echo -e "\nBuild Date: $(date +'%Y-%m-%d')\n" >> release_notes.md
+            echo "# ${{ steps.package-info.outputs.product_name }} v${{ steps.package-info.outputs.version }}" > release_notes.md
+            echo -e "\nBuild Date: $(date +'%Y-%m-%d')\nBuild ID: ${{ steps.package-info.outputs.timestamp }}\n" >> release_notes.md
           fi
           echo "notes_file=release_notes.md" >> $GITHUB_OUTPUT
+        shell: bash
+      
+      # Rename the built files to include version
+      - name: Rename output files with version
+        run: |
+          # Get all .exe files in dist
+          find dist -name "*.exe" -type f | while read file; do
+            # Get basename and directory
+            dir=$(dirname "$file")
+            base=$(basename "$file")
+            
+            # Check if version is in filename
+            if [[ "$base" != *"${{ steps.package-info.outputs.version }}"* ]]; then
+              # If no version in filename, rename to include version
+              new_name="${dir}/${{ steps.package-info.outputs.product_name }}-Setup-${{ steps.package-info.outputs.version }}.exe"
+              echo "Renaming $file to $new_name"
+              mv "$file" "$new_name"
+            fi
+          done
         shell: bash
       
       # List build artifacts
@@ -141,27 +123,17 @@ jobs:
           find dist -type f -name "*.exe" -exec ls -la {} \;
         shell: bash
       
-      # Create GitHub Release
+      # Create GitHub Release without tags
       - name: Create Release
         id: create_release
-        if: steps.tag-check.outputs.tag_exists == 'false' || github.event.inputs.force_release == 'true'
         uses: softprops/action-gh-release@v1
         with:
-          name: "Release ${{ steps.package-info.outputs.version }}"
-          tag_name: ${{ steps.package-info.outputs.version_tag }}
+          name: "${{ steps.package-info.outputs.product_name }} v${{ steps.package-info.outputs.version }} (Build ${{ steps.package-info.outputs.timestamp }})"
+          tag_name: "build-${{ steps.package-info.outputs.release_id }}"
           draft: false
           prerelease: ${{ github.event.inputs.release_type == 'pre-release' }}
           files: |
             dist/*.exe
-            dist/${{ steps.package-info.outputs.product_name }}*.exe
           body_path: ${{ steps.release-notes.outputs.notes_file }}
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      
-      # Push the tag to the repository
-      - name: Push Tag
-        if: (steps.tag-check.outputs.tag_exists == 'false' || github.event.inputs.force_release == 'true') && failure() != true
-        run: |
-          echo "Pushing tag ${{ steps.package-info.outputs.version_tag }} to repository..."
-          git push origin ${{ steps.package-info.outputs.version_tag }}
-        shell: bash
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
