@@ -19,6 +19,13 @@ Dhara TV is a modern streaming application built with Electron that allows users
 - **Responsive Design**: Works on various screen sizes
 - **Cross-Platform**: Available for Windows, macOS, and Linux
 
+## Disclaimer
+
+This TV streaming application is developed solely for educational and learning purposes. It utilizes third-party streaming sources and allows users to add their own streaming sources. The developer does not host, provide, or endorse any streaming content accessible through this application. The application does not include or distribute any copyrighted content. Any streaming sources used are provided by third parties or added by users. Users are solely responsible for ensuring that the streaming sources they add comply with all applicable laws, regulations, and licensing agreements in their jurisdiction.
+- This application is provided "as is" under the MIT License, with no warranties or guarantees of any kind, including but not limited to functionality, availability, or legality of use.
+- This application is intended for learning and demonstration purposes. It should not be used for commercial purposes or in any way that violates intellectual property rights or local laws.
+- The developer is not responsible for the reliability, security, or content of third-party streaming sources, which may expose users to risks such as malware, data breaches, or illegal content.
+
 ## Installation
 
 ### Prerequisites
