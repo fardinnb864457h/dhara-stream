@@ -119,7 +119,7 @@ jobs:
             dist/${{ steps.package-info.outputs.product_name }}*.exe
           body_path: ${{ steps.release-notes.outputs.notes_file }}
         env:
-          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       
       # Push the tag to the repository
       - name: Push Tag
