@@ -6,6 +6,8 @@ on:
       - main
     tags:
       - 'v*' # This will trigger the workflow when you push a tag starting with 'v'
+    paths:
+      - 'package.json' # This will trigger the workflow when package.json changes
   workflow_dispatch:
     inputs:
       release_name:
@@ -25,25 +27,23 @@ jobs:
   build-windows:
     if: ${{ github.event_name == 'push' || github.event.inputs.os == 'all' || github.event.inputs.os == 'windows' }}
     runs-on: windows-latest
-    env:
-      GH_TOKEN: ${{ secrets.GH_TOKEN }}
+    permissions:
+      contents: write # Explicitly set permissions for creating releases
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 0 # Fetch all history for proper versioning
 
       # Set up Node.js
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '23.3.0'
+          node-version: '20.x' # Using a more stable Node.js version
 
       # Install dependencies
       - name: Install Dependencies
         run: npm install
-
-      # Build the binaries
-      - name: Build Binaries
-        run: npm run build:win
 
       # Get package info from package.json
       - name: Get Package Info
@@ -54,14 +54,38 @@ jobs:
           echo "product-name=$(node -p "require('./package.json').build.productName || require('./package.json').name")" >> $GITHUB_OUTPUT
         shell: bash
 
+      # Generate a timestamp for unique tagging
+      - name: Generate Timestamp
+        id: timestamp
+        run: echo "timestamp=$(date +'%Y%m%d%H%M%S')" >> $GITHUB_OUTPUT
+        shell: bash
+        
+      # Create a unique tag based on version and timestamp
+      - name: Create Unique Tag
+        id: unique-tag
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          version="v${{ steps.package-info.outputs.version }}"
+          unique_tag="${version}-build.${{ steps.timestamp.outputs.timestamp }}"
+          git tag -a $unique_tag -m "Release $version (Build ${{ steps.timestamp.outputs.timestamp }})"
+          echo "RELEASE_TAG=$unique_tag" >> $GITHUB_ENV
+          echo "BASE_VERSION=$version" >> $GITHUB_ENV
+        shell: bash
+          
+      # Build the binaries
+      - name: Build Binaries
+        run: npm run build:win
+
       # Prepare release notes by updating version in the changelog
       - name: Prepare Release Notes
         id: release-notes
         run: |
           # Read the changelog and replace [VERSION] with actual version
           CHANGELOG_CONTENT=$(cat CHANGELOG.md | sed "s/\[VERSION\]/${{ steps.package-info.outputs.version }}/g")
-          # Save to a temporary file with proper escaping for multiline content in GitHub Actions
-          echo "$CHANGELOG_CONTENT" > release_notes.md
+          # Add build information
+          echo -e "\n### Build Information\nBuild Date: $(date +'%Y-%m-%d %H:%M:%S')\nBuild ID: ${{ steps.timestamp.outputs.timestamp }}" >> release_notes.md
+          echo "$CHANGELOG_CONTENT" >> release_notes.md
           echo "notes-file=release_notes.md" >> $GITHUB_OUTPUT
         shell: bash
 
@@ -71,18 +95,25 @@ jobs:
           ls -la dist/
         shell: bash
 
-      # Create GitHub Release for Windows
+      # Create GitHub Release for Windows with unique tag
       - name: Create Release
         id: create_release
         uses: softprops/action-gh-release@v1
         with:
-          name: ${{ github.event.inputs.release_name || format('Release v{0}', steps.package-info.outputs.version) }}
-          tag_name: ${{ github.ref_type == 'tag' && github.ref_name || format('v{0}', steps.package-info.outputs.version) }}
+          name: ${{ github.event.inputs.release_name || format('Release {0} (Build {1})', env.BASE_VERSION, steps.timestamp.outputs.timestamp) }}
+          tag_name: ${{ env.RELEASE_TAG }}
           draft: false
           prerelease: false
           files: |
-            dist/${{ steps.package-info.outputs.app-name }}-setup-${{ steps.package-info.outputs.version }}-*.exe
+            dist/${{ steps.package-info.outputs.product-name }}*.exe
+            dist/*.exe
           body_path: ${{ steps.release-notes.outputs.notes-file }}
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+          
+      # Push the unique tag to the repository
+      - name: Push Tag
+        run: |
+          git push origin ${{ env.RELEASE_TAG }}
+        shell: bash
