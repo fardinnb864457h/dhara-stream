@@ -38,7 +38,7 @@ jobs:
           VERSION=$(node -p "require('./package.json').version")
           PRODUCT_NAME=$(node -p "require('./package.json').build.productName || require('./package.json').name")
           TIMESTAMP=$(date +'%Y%m%d%H%M%S')
-          RELEASE_ID="$VERSION-$TIMESTAMP"
+          RELEASE_ID="v$VERSION"
           
           echo "app_name=$APP_NAME" >> $GITHUB_OUTPUT
           echo "version=$VERSION" >> $GITHUB_OUTPUT
@@ -129,7 +129,7 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           name: "${{ steps.package-info.outputs.product_name }} v${{ steps.package-info.outputs.version }} (Build ${{ steps.package-info.outputs.timestamp }})"
-          tag_name: "build-${{ steps.package-info.outputs.release_id }}"
+          tag_name: "${{ steps.package-info.outputs.release_id }}"
           draft: false
           prerelease: ${{ github.event.inputs.release_type == 'pre-release' }}
           files: |
