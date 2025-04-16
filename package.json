@@ -62,6 +62,8 @@
       "createDesktopShortcut": true,
       "installerIcon": "icon.ico",
       "uninstallerIcon": "icon.ico"
-    }
+    },
+    "extraResources": [],
+    "electronLanguages": ["en-US"]
   }
 }
