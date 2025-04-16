@@ -73,9 +73,13 @@ jobs:
           echo "BASE_VERSION=$version" >> $GITHUB_ENV
         shell: bash
           
-      # Build the binaries
+      # Build the binaries - Adding the GH_TOKEN to environment variables
       - name: Build Binaries
         run: npm run build:win
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          # Add publish=never flag to prevent attempting to publish if token is not set
+          CSC_IDENTITY_AUTO_DISCOVERY: false
 
       # Prepare release notes by updating version in the changelog
       - name: Prepare Release Notes
