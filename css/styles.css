@@ -10,6 +10,7 @@
   --text-secondary: #aaaaaa;
   --border-color: #303030;
   --transition-speed: 0.2s;
+  --transition-speed-slow: 0.4s;
 }
 
 * {
@@ -37,6 +38,7 @@ body {
 a {
   text-decoration: none;
   color: var(--text-primary);
+  transition: all var(--transition-speed) ease;
 }
 
 /* Header Section */
@@ -105,6 +107,7 @@ a {
   font-size: 16px;
   color: var(--text-primary);
   outline: none;
+  transition: all var(--transition-speed) ease;
 }
 
 #searchBar::placeholder, #searchBarMobile::placeholder {
@@ -113,6 +116,8 @@ a {
 
 #searchBar:focus, #searchBarMobile:focus {
   border-color: #1c62b9;
+  box-shadow: 0 0 0 2px rgba(28, 98, 185, 0.3);
+  transform: scale(1.01);
 }
 
 .search-button {
@@ -127,6 +132,7 @@ a {
   align-items: center;
   justify-content: center;
   cursor: pointer;
+  transition: all var(--transition-speed) ease;
 }
 
 .search-button:hover {
@@ -150,10 +156,16 @@ a {
   color: var(--text-primary);
   cursor: pointer;
   border: none;
+  transition: all var(--transition-speed) ease;
 }
 
 .header-icon:hover {
   background-color: var(--bg-hover);
+  transform: translateY(-2px);
+}
+
+.header-icon:active {
+  transform: translateY(0);
 }
 
 /* Loading Indicator */
@@ -172,7 +184,7 @@ a {
   border: 3px solid rgba(255, 255, 255, 0.3);
   border-radius: 50%;
   border-top: 3px solid var(--primary-color);
-  animation: spin 1s linear infinite;
+  animation: spin 0.8s cubic-bezier(0.5, 0, 0.5, 1) infinite;
 }
 
 @keyframes spin {
@@ -193,12 +205,14 @@ a {
   justify-content: center;
   padding: 60px 20px;
   text-align: center;
+  animation: fadeIn 0.5s ease;
 }
 
 .empty-icon {
   font-size: 48px;
   margin-bottom: 16px;
   color: var(--text-secondary);
+  animation: pulse 2s infinite;
 }
 
 .empty-title {
@@ -226,6 +240,7 @@ a {
   z-index: 3000;
   justify-content: center;
   align-items: center;
+  transition: opacity 0.3s ease;
 }
 
 .settings-content {
@@ -235,6 +250,9 @@ a {
   max-width: 500px;
   padding: 24px;
   position: relative;
+  max-height: 90vh;
+  overflow-y: auto;
+  animation: fadeInUp 0.3s ease;
 }
 
 .settings-header {
@@ -307,7 +325,7 @@ a {
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
-  transition: background-color var(--transition-speed);
+  transition: background-color var(--transition-speed), transform var(--transition-speed), box-shadow var(--transition-speed);
   border: none;
 }
 
@@ -319,6 +337,13 @@ a {
 
 .btn-default:hover {
   background-color: rgba(255, 255, 255, 0.1);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.btn-default:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .btn-primary {
@@ -328,6 +353,13 @@ a {
 
 .btn-primary:hover {
   background-color: var(--primary-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.btn-primary:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .btn-danger {
@@ -337,6 +369,110 @@ a {
 
 .btn-danger:hover {
   background-color: #aa0000;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.btn-danger:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Playlist List in Settings */
+.playlists-list {
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  max-height: 200px;
+  overflow-y: auto;
+  margin-bottom: 16px;
+}
+
+.playlist-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.playlist-item:last-child {
+  border-bottom: none;
+}
+
+.playlist-info {
+  flex: 1;
+  overflow: hidden;
+}
+
+.playlist-name {
+  font-weight: 500;
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.playlist-url {
+  font-size: 12px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.playlist-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.playlist-action-btn {
+  background-color: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all var(--transition-speed) ease;
+}
+
+.playlist-action-btn:hover {
+  background-color: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.playlist-action-btn.remove:hover {
+  color: #ff4d4d;
+}
+
+.playlist-action-btn.active {
+  color: var(--primary-color);
+}
+
+.empty-playlists-message {
+  padding: 16px;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.btn-secondary {
+  background-color: #444444;
+  color: white;
+}
+
+.btn-secondary:hover {
+  background-color: #555555;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.btn-secondary:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 /* Notification */
@@ -353,12 +489,13 @@ a {
   align-items: center;
   gap: 12px;
   transform: translateX(120%);
-  transition: transform 0.3s ease;
+  transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   z-index: 4000;
 }
 
 .notification.show {
   transform: translateX(0);
+  animation: bounce 1s ease;
 }
 
 .notification i {
@@ -418,6 +555,7 @@ a {
   font-size: 48px;
   margin-bottom: 16px;
   color: var(--primary-color);
+  animation: pulse 2s infinite;
 }
 
 .welcome-screen h2 {
@@ -434,12 +572,14 @@ a {
 .player-info {
   padding: 15px 0;
   margin-bottom: 2px;
+  animation: fadeIn 0.5s ease;
 }
 
 .player-title {
   font-size: 20px;
   font-weight: 500;
   margin-bottom: 8px;
+  animation: fadeIn 0.5s ease;
 }
 
 .player-meta {
@@ -448,6 +588,7 @@ a {
   gap: 8px;
   color: var(--text-secondary);
   font-size: 14px;
+  animation: fadeIn 0.5s ease;
 }
 
 .player-category {
@@ -474,10 +615,12 @@ a {
   padding: 8px;
   border-radius: 4px;
   font-size: 14px;
+  transition: all var(--transition-speed) ease;
 }
 
 .player-action:hover {
   background-color: var(--bg-hover);
+  transform: translateY(-2px);
 }
 
 .player-action i {
@@ -486,6 +629,7 @@ a {
 
 .player-action.active i {
   color: var(--primary-color);
+  animation: heartBeat 1.3s ease;
 }
 
 /* Favorites Carousel */
@@ -519,6 +663,7 @@ a {
   cursor: pointer;
   width: clamp(60px, 60vw, 80px);
   text-align: center;
+  transition: all var(--transition-speed) ease;
 }
 
 .carousel-thumb, .channel-thumb {
@@ -531,7 +676,7 @@ a {
   aspect-ratio: 1;
   border-radius: 50%;
   border: 2px solid var(--border-color);
-  transition: border-color var(--transition-speed);
+  transition: transform 0.3s ease, border-color 0.3s ease;
 }
 
 .channel-thumb {
@@ -542,6 +687,7 @@ a {
 }
 
 .carousel-thumb:hover {
+  transform: scale(1.1);
   border-color: var(--primary-color);
 }
 
@@ -591,16 +737,20 @@ a {
   padding: 8px;
   border-radius: 8px;
   cursor: pointer;
-  transition: background-color var(--transition-speed);
+  transition: background-color var(--transition-speed), transform var(--transition-speed);
   margin-bottom: 8px;
 }
 
 .channel-item:hover {
   background-color: var(--bg-hover);
+  transform: translateX(5px);
 }
 
 .channel-item.active {
   background-color: rgba(255, 0, 0, 0.1);
+  border-left: 3px solid var(--primary-color);
+  animation: pulse 1s infinite;
+  animation-iteration-count: 1;
 }
 
 .channel-info {
@@ -643,18 +793,22 @@ a {
   color: var(--text-secondary);
   font-size: 13px;
   cursor: pointer;
-  transition: background-color var(--transition-speed), color var(--transition-speed);
+  transition: background-color var(--transition-speed), color var(--transition-speed), transform var(--transition-speed), box-shadow var(--transition-speed);
   white-space: nowrap;
 }
 
 .sidebar-category-tab:hover {
   background-color: rgba(255, 255, 255, 0.15);
   color: var(--text-primary);
+  transform: translateY(-2px);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
 }
 
 .sidebar-category-tab.active {
   background-color: var(--primary-color);
   color: white;
+  transform: scale(1.05);
+  font-weight: 500;
 }
 
 /* Search Modal */
@@ -668,10 +822,15 @@ a {
   padding: 16px;
   z-index: 1000;
   border-bottom: 1px solid var(--border-color);
+  transform: translateY(-20px);
+  opacity: 0;
+  transition: opacity 0.3s ease, transform 0.3s ease;
 }
 
 .search-modal.show {
   display: block;
+  transform: translateY(0);
+  opacity: 1;
 }
 
 /* Responsive layout */
@@ -694,7 +853,7 @@ a {
     height: calc(100vh - 97px);
     background-color: var(--bg-dark);
     transform: translateX(100%);
-    transition: transform 0.3s ease;
+    transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     z-index: 900;
   }
   
@@ -718,6 +877,12 @@ a {
     z-index: 910;
     font-size: 20px;
     cursor: pointer;
+    transition: all 0.3s ease;
+  }
+  
+  .toggle-channel-list:hover {
+    transform: rotate(45deg);
+    background-color: var(--primary-hover);
   }
   
   .overlay {
@@ -729,10 +894,12 @@ a {
     bottom: 0;
     background-color: rgba(0, 0, 0, 0.7);
     z-index: 890;
+    transition: opacity 0.3s ease;
+    opacity: 0;
   }
   
   .overlay.show {
-    display: block;
+    opacity: 1;
   }
 }
 
@@ -748,4 +915,306 @@ a {
   .search-button-mobile {
     display: flex;
   }
+}
+
+/* Playlist Selector Modal */
+.playlist-selector-modal {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.7);
+  z-index: 3000;
+  justify-content: center;
+  align-items: center;
+  transition: opacity 0.3s ease;
+}
+
+.playlist-selector-content {
+  background-color: var(--bg-card);
+  border-radius: 8px;
+  width: 90%;
+  max-width: 400px;
+  padding: 20px;
+  position: relative;
+  max-height: 80vh;
+  overflow-y: auto;
+  animation: fadeInUp 0.3s ease;
+}
+
+.playlist-selector-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.playlist-selector-title {
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.close-playlist-selector {
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.playlist-selector-list {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.playlist-selector-item {
+  padding: 12px 16px;
+  border-radius: 4px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: background-color var(--transition-speed);
+  display: flex;
+  align-items: center;
+}
+
+.playlist-selector-item:hover {
+  background-color: var(--bg-hover);
+}
+
+.playlist-selector-item.active {
+  background-color: rgba(255, 0, 0, 0.2);
+}
+
+.playlist-selector-item i {
+  margin-right: 10px;
+  color: var(--primary-color);
+}
+
+.playlist-selector-item-name {
+  font-weight: 500;
+}
+
+/* Form Actions */
+.form-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+/* Edit Icon for Playlists */
+.playlist-action-btn.edit {
+  margin-right: 4px;
+}
+
+.playlist-action-btn.edit:hover {
+  color: #4da6ff;
+}
+
+/* Animation Keyframes */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fadeInUp {
+  from { 
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to { 
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+@keyframes heartBeat {
+  0% { transform: scale(1); }
+  14% { transform: scale(1.3); }
+  28% { transform: scale(1); }
+  42% { transform: scale(1.3); }
+  70% { transform: scale(1); }
+}
+
+@keyframes slideInRight {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes bounce {
+  0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+  40% { transform: translateY(-10px); }
+  60% { transform: translateY(-5px); }
+}
+
+/* Smooth transitions for all interactive elements */
+button, a, .channel-item, .carousel-item, .header-icon, .sidebar-category-tab, .player-action {
+  transition: all var(--transition-speed) ease;
+}
+
+/* Video player fade-in animation */
+.fade-in-animation {
+  animation: fadeIn 0.5s ease;
+}
+
+/* Button hover and active animations */
+.btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Channel item animations */
+.channel-item:hover {
+  transform: translateX(5px);
+}
+
+.channel-item.active {
+  background-color: rgba(255, 0, 0, 0.1);
+  border-left: 3px solid var(--primary-color);
+  animation: pulse 1s infinite;
+  animation-iteration-count: 1;
+}
+
+/* Favorite heart animation */
+.player-action.active i.fa-heart {
+  animation: heartBeat 1.3s ease;
+}
+
+/* Carousel item animations */
+.carousel-item:hover .carousel-thumb {
+  transform: scale(1.1);
+  border-color: var(--primary-color);
+}
+
+.carousel-thumb {
+  transition: transform 0.3s ease, border-color 0.3s ease;
+}
+
+/* Header icon animations */
+.header-icon:hover {
+  background-color: var(--bg-hover);
+  transform: translateY(-2px);
+}
+
+.header-icon:active {
+  transform: translateY(0);
+}
+
+/* Search bar focus animation */
+#searchBar:focus, #searchBarMobile:focus {
+  border-color: #1c62b9;
+  box-shadow: 0 0 0 2px rgba(28, 98, 185, 0.3);
+  transform: scale(1.01);
+}
+
+/* Category tab animations */
+.sidebar-category-tab:hover {
+  transform: translateY(-2px);
+}
+
+.sidebar-category-tab.active {
+  transform: scale(1.05);
+  font-weight: 500;
+}
+
+/* Modal animations */
+.settings-modal, .playlist-selector-modal {
+  transition: opacity 0.3s ease;
+}
+
+.settings-content, .playlist-selector-content {
+  animation: fadeInUp 0.3s ease;
+}
+
+/* Channel list toggle button animation */
+.toggle-channel-list {
+  transition: all 0.3s ease;
+}
+
+.toggle-channel-list:hover {
+  transform: rotate(45deg);
+  background-color: var(--primary-hover);
+}
+
+/* Notification animation - improved */
+.notification {
+  transform: translateX(120%);
+  transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  z-index: 4000;
+}
+
+.notification.show {
+  transform: translateX(0);
+  animation: bounce 1s ease;
+}
+
+/* Search modal animation */
+.search-modal {
+  display: none;
+  transform: translateY(-20px);
+  opacity: 0;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.search-modal.show {
+  display: block;
+  transform: translateY(0);
+  opacity: 1;
+}
+
+/* Mobile channel list slide-in animation */
+@media (max-width: 900px) {
+  .channel-list-column {
+    transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  }
+  
+  .overlay {
+    transition: opacity 0.3s ease;
+    opacity: 0;
+  }
+  
+  .overlay.show {
+    opacity: 1;
+  }
+}
+
+/* Loading animation enhancements */
+.spinner {
+  animation: spin 0.8s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+}
+
+/* Empty state animation */
+.empty-state {
+  animation: fadeIn 0.5s ease;
+}
+
+.empty-icon {
+  animation: pulse 2s infinite;
+}
+
+/* Welcome screen animation */
+.welcome-screen i {
+  animation: pulse 2s infinite;
+}
+
+/* Player info fade-in */
+.player-info, .player-title, .player-meta {
+  animation: fadeIn 0.5s ease;
+}
+
+/* Channel category tabs hover effect */
+.sidebar-category-tab:hover {
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
 }

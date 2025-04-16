@@ -1,10 +1,15 @@
 # Changelog
 
-## [VERSION]
+## v1.0.1 - April 16, 2025
 
 ### What's New
+- Enhanced UI with smooth animations and transitions
+- Added fade-in effects for video player and content loading
+- Implemented hover animations for interactive elements
+- Added heartbeat animation for favorites button
+- Improved modal transitions with fade and slide effects
+- Enhanced mobile experience with animated navigation
 - First public release of Dhara streaming app
-- Cross-platform support for Windows, macOS, and Linux
 - Modern user interface with custom styling
 - Streaming functionality with responsive design
 

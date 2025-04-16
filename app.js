@@ -32,18 +32,28 @@ document.addEventListener('DOMContentLoaded', () => {
     const settingsModal = document.getElementById('settingsModal');
     const closeSettingsBtn = document.getElementById('closeSettingsBtn');
     const jsonUrlInput = document.getElementById('jsonUrlInput');
+    const playlistNameInput = document.getElementById('playlistNameInput');
+    const editPlaylistId = document.getElementById('editPlaylistId');
+    const addPlaylistBtn = document.getElementById('addPlaylistBtn');
+    const updatePlaylistBtn = document.getElementById('updatePlaylistBtn');
+    const cancelEditBtn = document.getElementById('cancelEditBtn');
+    const playlistsList = document.getElementById('playlistsList');
     const saveSettings = document.getElementById('saveSettings');
     const cancelSettings = document.getElementById('cancelSettings');
     const resetSettings = document.getElementById('resetSettings');
     const notification = document.getElementById('notification');
     const notificationMessage = document.getElementById('notificationMessage');
     
+    // Playlist selector elements
+    const playlistSelectorBtn = document.getElementById('playlistSelectorBtn');
+    const playlistSelectorModal = document.getElementById('playlistSelectorModal');
+    const closePlaylistSelectorBtn = document.getElementById('closePlaylistSelectorBtn');
+    const playlistSelectorList = document.getElementById('playlistSelectorList');
+    
     // Default JSON URL - update to point to M3U file
     const DEFAULT_JSON_URL = 'https://raw.githubusercontent.com/byte-capsule/Toffee-Channels-Link-Headers/refs/heads/main/toffee_OTT_Navigator.m3u';
+    const DEFAULT_PLAYLIST_NAME = 'Default Playlist';
     
-    // Get custom URL from localStorage or use default
-    const jsonUrl = localStorage.getItem('customJsonUrl') || DEFAULT_JSON_URL;
-
     // Global variables
     let channels = [];
     let filteredChannels = [];
@@ -52,6 +62,42 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentChannel = null;
     let ytPlayer = null;
     let ytHls = null;
+    
+    // Playlists management
+    let playlists = JSON.parse(localStorage.getItem('playlists')) || [];
+    let activePlaylistId = localStorage.getItem('activePlaylistId') || '';
+    
+    // Initialize with default playlist if no playlists exist
+    if (playlists.length === 0) {
+      const defaultPlaylist = {
+        id: generateUniqueId(),
+        name: DEFAULT_PLAYLIST_NAME,
+        url: DEFAULT_JSON_URL
+      };
+      playlists.push(defaultPlaylist);
+      activePlaylistId = defaultPlaylist.id;
+      
+      // Save to localStorage
+      localStorage.setItem('playlists', JSON.stringify(playlists));
+      localStorage.setItem('activePlaylistId', activePlaylistId);
+    } 
+    // Ensure activePlaylistId points to a valid playlist
+    else {
+      // Check if the active playlist ID exists in the playlists array
+      const activePlaylistExists = playlists.some(p => p.id === activePlaylistId);
+      
+      if (!activePlaylistExists) {
+        // If active playlist doesn't exist, set the first playlist as active
+        activePlaylistId = playlists[0].id;
+        localStorage.setItem('activePlaylistId', activePlaylistId);
+        console.log("Active playlist not found, using the first available playlist instead");
+      }
+    }
+    
+    // Function to generate a unique ID
+    function generateUniqueId() {
+      return Date.now().toString(36) + Math.random().toString(36).substring(2);
+    }
 
     // Function to show notification
     function showNotification(message, duration = 3000) {
@@ -61,10 +107,257 @@ document.addEventListener('DOMContentLoaded', () => {
         notification.classList.remove('show');
       }, duration);
     }
+    
+    // Function to get active playlist details
+    function getActivePlaylist() {
+      return playlists.find(p => p.id === activePlaylistId) || playlists[0];
+    }
+    
+    // Function to render the quick playlist selector
+    function renderPlaylistSelector() {
+      playlistSelectorList.innerHTML = '';
+      
+      playlists.forEach(playlist => {
+        const isActive = playlist.id === activePlaylistId;
+        
+        const playlistItem = document.createElement('div');
+        playlistItem.className = `playlist-selector-item ${isActive ? 'active' : ''}`;
+        
+        playlistItem.innerHTML = `
+          <i class="fa-${isActive ? 'solid' : 'regular'} fa-circle-check"></i>
+          <span class="playlist-selector-item-name">${playlist.name}</span>
+        `;
+        
+        playlistItem.addEventListener('click', () => {
+          activatePlaylist(playlist.id, true);
+        });
+        
+        playlistSelectorList.appendChild(playlistItem);
+      });
+    }
+    
+    // Function to render the playlists list
+    function renderPlaylists() {
+      playlistsList.innerHTML = '';
+      
+      if (playlists.length === 0) {
+        playlistsList.innerHTML = `
+          <div class="empty-playlists-message">No playlists added yet.</div>
+        `;
+        return;
+      }
+      
+      playlists.forEach(playlist => {
+        const isActive = playlist.id === activePlaylistId;
+        
+        const playlistItem = document.createElement('div');
+        playlistItem.className = 'playlist-item';
+        
+        playlistItem.innerHTML = `
+          <div class="playlist-info">
+            <div class="playlist-name">${playlist.name}</div>
+            <div class="playlist-url">${playlist.url}</div>
+          </div>
+          <div class="playlist-actions">
+            <button class="playlist-action-btn edit" title="Edit Playlist">
+              <i class="fa-solid fa-pen-to-square"></i>
+            </button>
+            <button class="playlist-action-btn select ${isActive ? 'active' : ''}" title="${isActive ? 'Currently Active' : 'Select Playlist'}">
+              <i class="fa-${isActive ? 'solid' : 'regular'} fa-circle-check"></i>
+            </button>
+            <button class="playlist-action-btn remove" title="Remove Playlist">
+              <i class="fa-solid fa-trash-alt"></i>
+            </button>
+          </div>
+        `;
+        
+        // Add event listeners to buttons
+        const editBtn = playlistItem.querySelector('.playlist-action-btn.edit');
+        editBtn.addEventListener('click', () => {
+          editPlaylist(playlist.id);
+        });
+        
+        const selectBtn = playlistItem.querySelector('.playlist-action-btn.select');
+        selectBtn.addEventListener('click', () => {
+          activatePlaylist(playlist.id);
+        });
+        
+        const removeBtn = playlistItem.querySelector('.playlist-action-btn.remove');
+        removeBtn.addEventListener('click', () => {
+          removePlaylist(playlist.id);
+        });
+        
+        playlistsList.appendChild(playlistItem);
+      });
+    }
+    
+    // Function to activate a playlist
+    function activatePlaylist(playlistId, reloadPage = false) {
+      if (activePlaylistId === playlistId) return;
+      
+      activePlaylistId = playlistId;
+      localStorage.setItem('activePlaylistId', activePlaylistId);
+      
+      // Update UI to reflect the change
+      renderPlaylists();
+      
+      const activePlaylist = playlists.find(p => p.id === playlistId);
+      if (activePlaylist) {
+        showNotification(`Switched to playlist: ${activePlaylist.name}`);
+        
+        if (reloadPage) {
+          // Reload channels with new active playlist
+          setTimeout(() => {
+            window.location.reload();
+          }, 1000);
+        }
+      }
+    }
+    
+    // Function to edit a playlist
+    function editPlaylist(playlistId) {
+      const playlist = playlists.find(p => p.id === playlistId);
+      if (!playlist) return;
+      
+      // Fill form with playlist details
+      playlistNameInput.value = playlist.name;
+      jsonUrlInput.value = playlist.url;
+      editPlaylistId.value = playlistId;
+      
+      // Show update and cancel buttons, hide add button
+      addPlaylistBtn.style.display = 'none';
+      updatePlaylistBtn.style.display = 'inline-flex';
+      cancelEditBtn.style.display = 'inline-flex';
+    }
+    
+    // Function to cancel edit mode
+    function cancelEdit() {
+      // Clear form
+      playlistNameInput.value = '';
+      jsonUrlInput.value = '';
+      editPlaylistId.value = '';
+      
+      // Show add button, hide update and cancel buttons
+      addPlaylistBtn.style.display = 'inline-flex';
+      updatePlaylistBtn.style.display = 'none';
+      cancelEditBtn.style.display = 'none';
+    }
+    
+    // Function to update a playlist
+    function updatePlaylist() {
+      const playlistId = editPlaylistId.value;
+      if (!playlistId) return;
+      
+      const name = playlistNameInput.value.trim();
+      const url = jsonUrlInput.value.trim();
+      
+      if (!name) {
+        showNotification('Please enter a playlist name');
+        return;
+      }
+      
+      if (!url) {
+        showNotification('Please enter a playlist URL or file path');
+        return;
+      }
+      
+      // Find and update the playlist
+      const playlistIndex = playlists.findIndex(p => p.id === playlistId);
+      if (playlistIndex === -1) return;
+      
+      playlists[playlistIndex].name = name;
+      playlists[playlistIndex].url = url;
+      
+      // Save to localStorage
+      localStorage.setItem('playlists', JSON.stringify(playlists));
+      
+      // Update UI
+      renderPlaylists();
+      cancelEdit();
+      
+      showNotification(`Playlist "${name}" updated successfully`);
+    }
+    
+    // Function to add a new playlist
+    function addPlaylist(name, url) {
+      if (!name || !url) return;
+      
+      const newPlaylist = {
+        id: generateUniqueId(),
+        name,
+        url
+      };
+      
+      playlists.push(newPlaylist);
+      localStorage.setItem('playlists', JSON.stringify(playlists));
+      
+      // If it's the first playlist, make it active
+      if (playlists.length === 1) {
+        activePlaylistId = newPlaylist.id;
+        localStorage.setItem('activePlaylistId', activePlaylistId);
+      }
+      
+      renderPlaylists();
+      showNotification(`Playlist "${name}" added successfully`);
+      
+      // Clear input fields
+      playlistNameInput.value = '';
+      jsonUrlInput.value = '';
+    }
+    
+    // Function to remove a playlist
+    function removePlaylist(playlistId) {
+      // Don't allow removing the last playlist
+      if (playlists.length <= 1) {
+        showNotification('Cannot remove the last playlist');
+        return;
+      }
+      
+      const playlistToRemove = playlists.find(p => p.id === playlistId);
+      if (!playlistToRemove) return;
+      
+      playlists = playlists.filter(p => p.id !== playlistId);
+      localStorage.setItem('playlists', JSON.stringify(playlists));
+      
+      // If the removed playlist was active, activate the first one
+      if (activePlaylistId === playlistId) {
+        activePlaylistId = playlists[0].id;
+        localStorage.setItem('activePlaylistId', activePlaylistId);
+        showNotification(`Playlist removed. Switched to: ${playlists[0].name}`);
+      } else {
+        showNotification(`Playlist "${playlistToRemove.name}" removed`);
+      }
+      
+      renderPlaylists();
+    }
+    
+    // Get current active playlist URL
+    function getActivePlaylistUrl() {
+      const activePlaylist = playlists.find(p => p.id === activePlaylistId);
+      return activePlaylist ? activePlaylist.url : DEFAULT_JSON_URL;
+    }
+    
+    // Playlist Selector Modal Handlers
+    playlistSelectorBtn.addEventListener('click', () => {
+      renderPlaylistSelector();
+      playlistSelectorModal.style.display = 'flex';
+    });
+    
+    closePlaylistSelectorBtn.addEventListener('click', () => {
+      playlistSelectorModal.style.display = 'none';
+    });
+    
+    // Close playlist selector when clicking outside
+    playlistSelectorModal.addEventListener('click', (e) => {
+      if (e.target === playlistSelectorModal) {
+        playlistSelectorModal.style.display = 'none';
+      }
+    });
 
     // Settings Modal Handlers
     settingsButton.addEventListener('click', () => {
-      jsonUrlInput.value = localStorage.getItem('customJsonUrl') || '';
+      renderPlaylists();
+      cancelEdit(); // Reset edit form
       settingsModal.style.display = 'flex';
     });
 
@@ -77,25 +370,52 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     resetSettings.addEventListener('click', () => {
-      jsonUrlInput.value = '';
-      localStorage.removeItem('customJsonUrl');
-      showNotification('Settings reset to default');
+      if (confirm('Are you sure you want to reset all playlists? This will remove all custom playlists.')) {
+        playlists = [{
+          id: generateUniqueId(),
+          name: DEFAULT_PLAYLIST_NAME,
+          url: DEFAULT_JSON_URL
+        }];
+        
+        activePlaylistId = playlists[0].id;
+        
+        localStorage.setItem('playlists', JSON.stringify(playlists));
+        localStorage.setItem('activePlaylistId', activePlaylistId);
+        
+        renderPlaylists();
+        cancelEdit(); // Reset edit form
+        showNotification('Settings reset to default');
+      }
     });
 
-    saveSettings.addEventListener('click', () => {
-      const customUrl = jsonUrlInput.value.trim();
+    addPlaylistBtn.addEventListener('click', () => {
+      const name = playlistNameInput.value.trim();
+      const url = jsonUrlInput.value.trim();
       
-      if (customUrl) {
-        localStorage.setItem('customJsonUrl', customUrl);
-        showNotification('Settings saved! Reloading channels...');
-      } else {
-        localStorage.removeItem('customJsonUrl');
-        showNotification('Using default channel source');
+      if (!name) {
+        showNotification('Please enter a playlist name');
+        return;
       }
       
+      if (!url) {
+        showNotification('Please enter a playlist URL or file path');
+        return;
+      }
+      
+      addPlaylist(name, url);
+    });
+    
+    // Update playlist button handler
+    updatePlaylistBtn.addEventListener('click', updatePlaylist);
+    
+    // Cancel edit button handler
+    cancelEditBtn.addEventListener('click', cancelEdit);
+
+    saveSettings.addEventListener('click', () => {
       settingsModal.style.display = 'none';
       
-      // Reload channels with new URL
+      // Reload channels with new active playlist
+      showNotification('Reloading channels from active playlist...');
       setTimeout(() => {
         window.location.reload();
       }, 1000);
@@ -288,10 +608,21 @@ document.addEventListener('DOMContentLoaded', () => {
       video.id = 'ytVideoPlayer';
       video.style.width = '100%';
       video.style.height = '100%';
+      // Add fade-in animation class to the video element
+      video.classList.add('fade-in-animation');
       document.getElementById('youtubeStylePlayer').appendChild(video);
       
       ytPlayer = new Plyr(video, {
         controls: ['play-large', 'play', 'progress', 'current-time', 'mute', 'volume', 'pip', 'settings', 'fullscreen'],
+        settings: ['quality'],
+        quality: { 
+          default: 'Auto', 
+          options: ['Auto', '1080p', '720p', '480p', '360p'], 
+          forced: true,
+          onChange: (quality) => {
+            console.log('Quality changed to: ' + quality);
+          }
+        },
         fullscreen: { enabled: true, iosNative: true },
         autoplay: true,
       });
@@ -306,13 +637,90 @@ document.addEventListener('DOMContentLoaded', () => {
             liveSyncDuration: 3,
             liveMaxLatencyDuration: 10,
             lowLatencyMode: true,
-            backBufferLength: 30
+            backBufferLength: 30,
+            capLevelToPlayerSize: true,
+            autoStartLoad: true
           });
           
           ytHls.loadSource(streamUrl);
           ytHls.attachMedia(video);
           
-          ytHls.on(Hls.Events.MANIFEST_PARSED, () => {
+          // Setup quality switching
+          ytHls.on(Hls.Events.MANIFEST_PARSED, function(event, data) {
+            console.log('HLS Manifest Parsed - Quality Levels:', ytHls.levels.length);
+            
+            // Get available qualities
+            const availableQualities = ytHls.levels.map((level, index) => {
+              return {
+                label: level.height ? `${level.height}p` : `${Math.round(level.bitrate/1000)} kbps`,
+                value: index
+              };
+            }).reverse(); // Higher quality first
+            
+            // Debug log quality levels detected
+            console.log('Available qualities:', availableQualities);
+            
+            // Build options array for Plyr
+            const qualityOptions = availableQualities.map(q => q.label);
+            qualityOptions.unshift('Auto'); // Add Auto option at beginning
+            
+            // Create quality switching function
+            const qualitySwitcher = function(quality) {
+              if (quality === 'Auto') {
+                ytHls.currentLevel = -1; // Auto
+                console.log('Set HLS to auto quality mode');
+              } else {
+                // Find the matching quality level
+                const levelIndex = availableQualities.findIndex(q => q.label === quality);
+                if (levelIndex > -1) {
+                  ytHls.currentLevel = availableQualities[levelIndex].value;
+                  console.log(`Set HLS to level: ${availableQualities[levelIndex].value} (${quality})`);
+                }
+              }
+            };
+            
+            // Update Plyr's quality menu
+            ytPlayer.elements.settings.quality = qualityOptions;
+            
+            // Directly set quality options
+            if (ytPlayer.config.quality) {
+              ytPlayer.config.quality.options = qualityOptions;
+              ytPlayer.config.quality.forced = true;
+              ytPlayer.config.quality.onChange = qualitySwitcher;
+            }
+            
+            // Manually update quality menu
+            if (ytPlayer.elements.settings.panels.quality) {
+              // Force quality menu rebuild
+              const qualityMenu = ytPlayer.elements.settings.panels.quality.querySelector('[role="menu"]');
+              if (qualityMenu) {
+                qualityMenu.innerHTML = '';
+                
+                qualityOptions.forEach(quality => {
+                  const item = document.createElement('button');
+                  item.type = 'button';
+                  item.role = 'menuitemradio';
+                  item.className = 'plyr__control plyr__control--forward';
+                  item.value = quality;
+                  item.setAttribute('data-plyr', 'quality');
+                  item.textContent = quality;
+                  item.setAttribute('aria-checked', quality === 'Auto' ? 'true' : 'false');
+                  
+                  item.addEventListener('click', () => {
+                    qualitySwitcher(quality);
+                    
+                    // Update active state
+                    qualityMenu.querySelectorAll('[role="menuitemradio"]').forEach(el => {
+                      el.setAttribute('aria-checked', el.value === quality ? 'true' : 'false');
+                    });
+                  });
+                  
+                  qualityMenu.appendChild(item);
+                });
+              }
+            }
+            
+            // Start playback
             ytPlayer.play().catch(error => {
               console.error('Error playing video:', error);
               showNotification('Failed to play video. Please try again.');
@@ -415,8 +823,14 @@ document.addEventListener('DOMContentLoaded', () => {
       loadingChannels.style.display = 'flex';
       
       try {
-        const currentJsonUrl = localStorage.getItem('customJsonUrl') || DEFAULT_JSON_URL;
+        const currentJsonUrl = getActivePlaylistUrl();
+        const activePlaylist = getActivePlaylist();
         console.log(`Loading channels from: ${currentJsonUrl}`);
+        
+        // Show active playlist name in header
+        if (activePlaylist) {
+          document.title = `${activePlaylist.name} - Dhara TV`;
+        }
         
         let m3uContent;
         
@@ -555,6 +969,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (searchModal.classList.contains('show')) {
           closeSearchModal.click();
+        }
+        if (playlistSelectorModal.style.display === 'flex') {
+          closePlaylistSelectorBtn.click();
         }
         if (channelListColumn.classList.contains('show')) {
           channelListColumn.classList.remove('show');

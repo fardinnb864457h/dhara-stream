@@ -37,6 +37,9 @@
       <button id="searchButtonMobile" class="header-icon search-button-mobile" style="display: none;">
         <i class="fa-solid fa-search"></i>
       </button>
+      <button id="playlistSelectorBtn" class="header-icon" title="Change Playlist">
+        <i class="fa-solid fa-list-ul"></i>
+      </button>
       <button id="settingsButton" class="header-icon" title="Settings">
         <i class="fa-solid fa-gear"></i>
       </button>
@@ -50,6 +53,21 @@
       <button class="search-button" id="closeSearchModal">
         <i class="fa-solid fa-xmark"></i>
       </button>
+    </div>
+  </div>
+
+  <!-- Playlist Selector Modal -->
+  <div id="playlistSelectorModal" class="playlist-selector-modal">
+    <div class="playlist-selector-content">
+      <div class="playlist-selector-header">
+        <h2 class="playlist-selector-title">Select Playlist</h2>
+        <button id="closePlaylistSelectorBtn" class="close-playlist-selector">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div id="playlistSelectorList" class="playlist-selector-list">
+        <!-- Playlists will be added here dynamically -->
+      </div>
     </div>
   </div>
 
@@ -146,13 +164,40 @@
         </button>
       </div>
       <div class="settings-form">
+        <!-- Playlist List Section -->
         <div class="form-group">
-          <label for="jsonUrlInput">Custom Playlist URL</label>
-          <input type="url" id="jsonUrlInput" placeholder="Enter URL or path to M3U playlist file">
-          <p class="help-text">Supports Toffee OTT M3U playlists with special headers</p>
+          <label>Your Playlists</label>
+          <div id="playlistsList" class="playlists-list">
+            <!-- Playlists will be added here dynamically -->
+            <div class="empty-playlists-message">No playlists added yet.</div>
+          </div>
         </div>
+        
+        <!-- Add/Edit Playlist Section -->
+        <div class="form-group">
+          <label for="playlistNameInput">Playlist Name</label>
+          <input type="text" id="playlistNameInput" placeholder="Enter a name for this playlist">
+          
+          <label for="jsonUrlInput">Playlist URL</label>
+          <input type="url" id="jsonUrlInput" placeholder="Enter URL or path to M3U playlist file">
+          <p class="help-text">Supports M3U playlists with special headers</p>
+          
+          <input type="hidden" id="editPlaylistId" value="">
+          <div class="form-actions">
+            <button id="addPlaylistBtn" class="btn btn-secondary">
+              <i class="fa-solid fa-plus"></i> Add Playlist
+            </button>
+            <button id="updatePlaylistBtn" class="btn btn-primary" style="display: none;">
+              <i class="fa-solid fa-save"></i> Update Playlist
+            </button>
+            <button id="cancelEditBtn" class="btn btn-default" style="display: none;">
+              Cancel
+            </button>
+          </div>
+        </div>
+        
         <div class="settings-actions">
-          <button id="resetSettings" class="btn btn-danger">Reset to Default</button>
+          <button id="resetSettings" class="btn btn-danger">Reset All Playlists</button>
           <button id="cancelSettings" class="btn btn-default">Cancel</button>
           <button id="saveSettings" class="btn btn-primary">Save Changes</button>
         </div>
