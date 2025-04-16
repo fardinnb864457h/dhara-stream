@@ -1,123 +1,129 @@
-name: Build and Release
+name: Build and Release Windows App
 
 on:
   push:
     branches:
       - main
-    tags:
-      - 'v*' # This will trigger the workflow when you push a tag starting with 'v'
+      - master
     paths:
-      - 'package.json' # This will trigger the workflow when package.json changes
-  workflow_dispatch:
+      - 'package.json' # Trigger when package.json changes (likely version updates)
+  workflow_dispatch: # Allow manual triggering
     inputs:
-      release_name:
-        description: 'Release name'
-        required: false
-        default: 'Latest Build'
-      os:
-        description: 'Operating system to build for'
-        required: false
-        default: 'windows'
+      release_type:
+        description: 'Release type'
+        required: true
+        default: 'standard'
         type: choice
         options:
-          - windows
-          - all
-        
+          - standard
+          - pre-release
+
 jobs:
   build-windows:
-    if: ${{ github.event_name == 'push' || github.event.inputs.os == 'all' || github.event.inputs.os == 'windows' }}
     runs-on: windows-latest
     permissions:
-      contents: write # Explicitly set permissions for creating releases
+      contents: write # Required for creating releases
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
         with:
           fetch-depth: 0 # Fetch all history for proper versioning
-
-      # Set up Node.js
+      
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '20.x' # Using a more stable Node.js version
-
-      # Install dependencies
+          node-version: '20.x'
+          cache: 'npm'
+      
       - name: Install Dependencies
         run: npm install
 
-      # Get package info from package.json
-      - name: Get Package Info
+      # Extract version information from package.json
+      - name: Extract Version Info
         id: package-info
         run: |
-          echo "app-name=$(node -p "require('./package.json').name")" >> $GITHUB_OUTPUT
+          echo "app_name=$(node -p "require('./package.json').name")" >> $GITHUB_OUTPUT
           echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
-          echo "product-name=$(node -p "require('./package.json').build.productName || require('./package.json').name")" >> $GITHUB_OUTPUT
+          echo "product_name=$(node -p "require('./package.json').build.productName || require('./package.json').name")" >> $GITHUB_OUTPUT
+          # Create clean version tag (v1.0.0)
+          echo "version_tag=v$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
         shell: bash
-
-      # Generate a timestamp for unique tagging
-      - name: Generate Timestamp
-        id: timestamp
-        run: echo "timestamp=$(date +'%Y%m%d%H%M%S')" >> $GITHUB_OUTPUT
+      
+      # Check if tag already exists
+      - name: Check if tag exists
+        id: tag-check
+        run: |
+          git fetch --tags
+          TAG_EXISTS=$(git tag -l "${{ steps.package-info.outputs.version_tag }}")
+          if [ -n "$TAG_EXISTS" ]; then
+            echo "tag_exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "tag_exists=false" >> $GITHUB_OUTPUT
+          fi
         shell: bash
-        
-      # Create a unique tag based on version and timestamp
-      - name: Create Unique Tag
-        id: unique-tag
+      
+      # Create tag if it doesn't exist
+      - name: Create Release Tag
+        if: steps.tag-check.outputs.tag_exists == 'false'
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          version="v${{ steps.package-info.outputs.version }}"
-          unique_tag="${version}-build.${{ steps.timestamp.outputs.timestamp }}"
-          git tag -a $unique_tag -m "Release $version (Build ${{ steps.timestamp.outputs.timestamp }})"
-          echo "RELEASE_TAG=$unique_tag" >> $GITHUB_ENV
-          echo "BASE_VERSION=$version" >> $GITHUB_ENV
+          git tag -a ${{ steps.package-info.outputs.version_tag }} -m "Release ${{ steps.package-info.outputs.version_tag }}"
+          echo "RELEASE_TAG=${{ steps.package-info.outputs.version_tag }}" >> $GITHUB_ENV
         shell: bash
-          
-      # Build the binaries - Adding the GH_TOKEN to environment variables
-      - name: Build Binaries
+      
+      # Build Windows binaries
+      - name: Build Windows App
         run: npm run build:win
         env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
-          # Add publish=never flag to prevent attempting to publish if token is not set
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_IDENTITY_AUTO_DISCOVERY: false
-
-      # Prepare release notes by updating version in the changelog
+      
+      # Generate release notes from changelog
       - name: Prepare Release Notes
         id: release-notes
         run: |
-          # Read the changelog and replace [VERSION] with actual version
-          CHANGELOG_CONTENT=$(cat CHANGELOG.md | sed "s/\[VERSION\]/${{ steps.package-info.outputs.version }}/g")
-          # Add build information
-          echo -e "\n### Build Information\nBuild Date: $(date +'%Y-%m-%d %H:%M:%S')\nBuild ID: ${{ steps.timestamp.outputs.timestamp }}" >> release_notes.md
-          echo "$CHANGELOG_CONTENT" >> release_notes.md
-          echo "notes-file=release_notes.md" >> $GITHUB_OUTPUT
+          if [ -f CHANGELOG.md ]; then
+            # Read changelog and update with current version
+            CHANGELOG_CONTENT=$(cat CHANGELOG.md | sed "s/\[VERSION\]/${{ steps.package-info.outputs.version }}/g")
+            echo "$CHANGELOG_CONTENT" > release_notes.md
+            
+            # Add build information footer
+            echo -e "\n## Build Information\nBuild Date: $(date +'%Y-%m-%d')\nVersion: ${{ steps.package-info.outputs.version }}" >> release_notes.md
+          else
+            # Create simple release notes if no changelog
+            echo "# Release ${{ steps.package-info.outputs.version_tag }}" > release_notes.md
+            echo -e "\nBuild Date: $(date +'%Y-%m-%d')\n" >> release_notes.md
+          fi
+          echo "notes_file=release_notes.md" >> $GITHUB_OUTPUT
         shell: bash
-
-      # List files in dist directory to debug
-      - name: List Build Files
+      
+      # List build artifacts
+      - name: List Build Artifacts
         run: |
           ls -la dist/
         shell: bash
-
-      # Create GitHub Release for Windows with unique tag
+      
+      # Create GitHub Release
       - name: Create Release
         id: create_release
+        if: steps.tag-check.outputs.tag_exists == 'false'
         uses: softprops/action-gh-release@v1
         with:
-          name: ${{ github.event.inputs.release_name || format('Release {0} (Build {1})', env.BASE_VERSION, steps.timestamp.outputs.timestamp) }}
-          tag_name: ${{ env.RELEASE_TAG }}
+          name: "Release ${{ steps.package-info.outputs.version }}"
+          tag_name: ${{ steps.package-info.outputs.version_tag }}
           draft: false
-          prerelease: false
+          prerelease: ${{ github.event.inputs.release_type == 'pre-release' }}
           files: |
-            dist/${{ steps.package-info.outputs.product-name }}*.exe
             dist/*.exe
-          body_path: ${{ steps.release-notes.outputs.notes-file }}
-          generate_release_notes: true
+            dist/${{ steps.package-info.outputs.product_name }}*.exe
+          body_path: ${{ steps.release-notes.outputs.notes_file }}
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
-          
-      # Push the unique tag to the repository
+      
+      # Push the tag to the repository
       - name: Push Tag
+        if: steps.tag-check.outputs.tag_exists == 'false'
         run: |
-          git push origin ${{ env.RELEASE_TAG }}
+          git push origin ${{ steps.package-info.outputs.version_tag }}
         shell: bash
