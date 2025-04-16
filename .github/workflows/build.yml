@@ -17,6 +17,11 @@ on:
         options:
           - standard
           - pre-release
+      force_release:
+        description: 'Force new release even if tag exists'
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   build-windows:
@@ -42,11 +47,21 @@ jobs:
       - name: Extract Version Info
         id: package-info
         run: |
-          echo "app_name=$(node -p "require('./package.json').name")" >> $GITHUB_OUTPUT
-          echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
-          echo "product_name=$(node -p "require('./package.json').build.productName || require('./package.json').name")" >> $GITHUB_OUTPUT
-          # Create clean version tag (v1.0.0)
-          echo "version_tag=v$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+          APP_NAME=$(node -p "require('./package.json').name")
+          VERSION=$(node -p "require('./package.json').version")
+          PRODUCT_NAME=$(node -p "require('./package.json').build.productName || require('./package.json').name")
+          VERSION_TAG="v$VERSION"
+          
+          echo "app_name=$APP_NAME" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "product_name=$PRODUCT_NAME" >> $GITHUB_OUTPUT
+          echo "version_tag=$VERSION_TAG" >> $GITHUB_OUTPUT
+          
+          # Display the extracted info for debugging
+          echo "App Name: $APP_NAME"
+          echo "Version: $VERSION"
+          echo "Product Name: $PRODUCT_NAME"
+          echo "Tag: $VERSION_TAG"
         shell: bash
       
       # Check if tag already exists
@@ -57,24 +72,44 @@ jobs:
           TAG_EXISTS=$(git tag -l "${{ steps.package-info.outputs.version_tag }}")
           if [ -n "$TAG_EXISTS" ]; then
             echo "tag_exists=true" >> $GITHUB_OUTPUT
+            echo "Tag ${{ steps.package-info.outputs.version_tag }} already exists"
           else
             echo "tag_exists=false" >> $GITHUB_OUTPUT
+            echo "Tag ${{ steps.package-info.outputs.version_tag }} does not exist yet"
           fi
+        shell: bash
+      
+      # Delete existing tag if force_release is enabled
+      - name: Delete existing tag if needed
+        if: github.event.inputs.force_release == 'true' && steps.tag-check.outputs.tag_exists == 'true'
+        run: |
+          echo "Deleting existing tag ${{ steps.package-info.outputs.version_tag }}..."
+          git push --delete origin ${{ steps.package-info.outputs.version_tag }} || true
+          git tag -d ${{ steps.package-info.outputs.version_tag }} || true
+          echo "tag_exists=false" >> $GITHUB_OUTPUT
         shell: bash
       
       # Create tag if it doesn't exist
       - name: Create Release Tag
-        if: steps.tag-check.outputs.tag_exists == 'false'
+        if: steps.tag-check.outputs.tag_exists == 'false' || github.event.inputs.force_release == 'true'
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
           git tag -a ${{ steps.package-info.outputs.version_tag }} -m "Release ${{ steps.package-info.outputs.version_tag }}"
           echo "RELEASE_TAG=${{ steps.package-info.outputs.version_tag }}" >> $GITHUB_ENV
+          echo "Created tag ${{ steps.package-info.outputs.version_tag }}"
         shell: bash
       
-      # Build Windows binaries
+      # Force clear electron-builder cache
+      - name: Clear electron-builder cache
+        run: |
+          rm -rf ~/.cache/electron-builder || true
+          rm -rf ./dist || true
+        shell: bash
+      
+      # Build Windows binaries with explicit version flag
       - name: Build Windows App
-        run: npm run build:win
+        run: npm run build:win -- --publish=never --c.extraMetadata.version=${{ steps.package-info.outputs.version }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_IDENTITY_AUTO_DISCOVERY: false
@@ -102,12 +137,14 @@ jobs:
       - name: List Build Artifacts
         run: |
           ls -la dist/
+          echo "Checking file details:"
+          find dist -type f -name "*.exe" -exec ls -la {} \;
         shell: bash
       
       # Create GitHub Release
       - name: Create Release
         id: create_release
-        if: steps.tag-check.outputs.tag_exists == 'false'
+        if: steps.tag-check.outputs.tag_exists == 'false' || github.event.inputs.force_release == 'true'
         uses: softprops/action-gh-release@v1
         with:
           name: "Release ${{ steps.package-info.outputs.version }}"
@@ -123,7 +160,8 @@ jobs:
       
       # Push the tag to the repository
       - name: Push Tag
-        if: steps.tag-check.outputs.tag_exists == 'false'
+        if: (steps.tag-check.outputs.tag_exists == 'false' || github.event.inputs.force_release == 'true') && failure() != true
         run: |
+          echo "Pushing tag ${{ steps.package-info.outputs.version_tag }} to repository..."
           git push origin ${{ steps.package-info.outputs.version_tag }}
         shell: bash
